@@ -11,6 +11,27 @@ from mms.interfaccia_mms import InterfacciaMMS
 def debug(messaggio: str) -> None:
     print(messaggio, file=sys.stderr, flush=True)
 
+'''
+da capire dove va inserito
+
+def trova_celle_centrali(larghezza: int, altezza: int) -> set[Posizione]:
+        x_centrali = {
+            (larghezza - 1) // 2,
+            larghezza // 2,
+        }
+
+        y_centrali = {
+            (altezza - 1) // 2,
+            altezza // 2,
+        }
+
+        return {
+            (x, y)
+            for x in x_centrali
+            for y in y_centrali
+        }
+
+'''
 def main() -> None:
       
     interfaccia = InterfacciaMMS()
@@ -30,11 +51,8 @@ def main() -> None:
     debug(f"Direzione: {robot.direzione}")
     debug(f"Sensori: {lettura}")
 
-    osservatore.aggiorna_mappa(
-        mappa=mappa,
-        robot=robot,
-        lettura=lettura,
-    )
+    osservatore.aggiorna_mappa(mappa, robot, lettura)
+    
 
     if not lettura.muro_davanti:
         azione = Azioni.AVANZA
@@ -48,11 +66,8 @@ def main() -> None:
 
     debug(f"Azione scelta: {azione}")
 
-    interfaccia.esegui_azione(
-        azione=azione,
-        robot=robot,
-        mappa=mappa,
-    )
+    interfaccia.esegui_azione(azione, robot, mappa)
+    
 
     debug(f"Nuova posizione: {robot.posizione}")
     debug(f"Nuova direzione: {robot.direzione}")
