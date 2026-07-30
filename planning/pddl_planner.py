@@ -1,4 +1,8 @@
+import re
+import sys
+
 from dataclasses import dataclass
+from io import StringIO
 from time import perf_counter
 
 from unified_planning.engines import (
@@ -6,58 +10,111 @@ from unified_planning.engines import (
 )
 from unified_planning.model import Problem
 from unified_planning.plans import Plan
-from unified_planning.shortcuts import OneshotPlanner
+from unified_planning.shortcuts import (
+    OneshotPlanner,
+    get_environment,
+)
+
+
+# Evita che i crediti finiscano su stdout,
+# che MMS usa per i propri comandi.
+get_environment().credits_stream = None
 
 
 @dataclass
 class RisultatoPianificazione:
-    piano: Plan
+    piano: Plan | None
     tempo_pianificazione: float
     stato: PlanGenerationResultStatus
     nome_planner: str
 
+    stati_espansi: int | None
+    stati_generati: int | None
+    dead_end_planner: int | None
 
-class ErrorePianificazione(RuntimeError):
-    pass
+    output_planner: str
 
-
-class PDDLPlanner:
-
-    def __init__(self, nome_planner: str = "fast-downward-opt") -> None:
-        self.nome_planner = nome_planner
-
-    def solve(self, problem: Problem) -> RisultatoPianificazione:
-        inizio = perf_counter()
-
-        with OneshotPlanner(
-            name=self.nome_planner,
-        ) as planner:
-            risultato = planner.solve(problem)
-
-        fine = perf_counter()
-
-        tempo_pianificazione = fine - inizio
-
+    @property
+    def successo(self) -> bool:
         stati_risolti = {
             PlanGenerationResultStatus.SOLVED_SATISFICING,
             PlanGenerationResultStatus.SOLVED_OPTIMALLY,
         }
 
-        if risultato.status not in stati_risolti:
-            raise ErrorePianificazione(
-                "Fast Downward non ha trovato un piano. "
-                f"Stato: {risultato.status}"
+        return (
+            self.stato in stati_risolti
+            and self.piano is not None
+        )
+
+
+class PDDLPlanner:
+    def __init__(
+        self,
+        nome_planner: str = "fast-downward-opt",
+    ) -> None:
+        self.nome_planner = nome_planner
+
+    def solve(
+        self,
+        problema: Problem,
+    ) -> RisultatoPianificazione:
+        output_buffer = StringIO()
+        inizio = perf_counter()
+
+        with OneshotPlanner(
+            name=self.nome_planner,
+        ) as planner:
+            risultato = planner.solve(
+                problema,
+                output_stream=output_buffer,
             )
 
-        if risultato.plan is None:
-            raise ErrorePianificazione(
-                "Il planner ha restituito uno stato risolto, "
-                "ma il piano è assente."
-            )
+        tempo_pianificazione = (
+            perf_counter() - inizio
+        )
+
+        output_planner = output_buffer.getvalue()
+
+        stati_espansi = self._estrai_intero(
+            output=output_planner,
+            pattern=r"Expanded\s+(\d+)\s+state",
+        )
+
+        stati_generati = self._estrai_intero(
+            output=output_planner,
+            pattern=r"Generated\s+(\d+)\s+state",
+        )
+
+        dead_end_planner = self._estrai_intero(
+            output=output_planner,
+            pattern=r"Dead ends:\s+(\d+)\s+state",
+        )
 
         return RisultatoPianificazione(
             piano=risultato.plan,
             tempo_pianificazione=tempo_pianificazione,
             stato=risultato.status,
             nome_planner=self.nome_planner,
+            stati_espansi=stati_espansi,
+            stati_generati=stati_generati,
+            dead_end_planner=dead_end_planner,
+            output_planner=output_planner,
         )
+
+    def _estrai_intero(
+        self,
+        output: str,
+        pattern: str,
+    ) -> int | None:
+        corrispondenze = re.findall(
+            pattern,
+            output,
+            flags=re.IGNORECASE,
+        )
+
+        if not corrispondenze:
+            return None
+
+        # Fast Downward può stampare più valori durante
+        # la ricerca. L'ultimo è normalmente il riepilogo finale.
+        return int(corrispondenze[-1])

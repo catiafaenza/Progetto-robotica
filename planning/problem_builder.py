@@ -1,385 +1,339 @@
-# Un oggetto Problem contiene:
-# fluenti, azioni, stato iniziale e goal.
+from unified_planning.model import Fluent, Object, Problem
+from unified_planning.shortcuts import (
+    BoolType,
+    InstantaneousAction,
+    Or,
+    UserType,
+)
 
-# PDDL proposizionale:
-# i fluenti sono booleani.
-# Fast Downward eseguirà il grounding.
-
-# I passaggi LIBERI sono True, gli altri False.
-
-# Tipi:
-#   Cella
-#   Direzione
-
-# Fluenti:
-#   robot_at(cella)
-#   robot_facing(direzione)
-#   connesso(cella1, cella2, direzione)
-#   sinistra_di(direzione_attuale, nuova_direzione)
-#   destra_di(direzione_attuale, nuova_direzione)
-
-from unified_planning.shortcuts import *
-
-from core.mappa_parziale import Mappa
-from core.stato_robot import StatoRobot
 from core.direzione import Direzione
+from core.mappa_parziale import Mappa, Posizione
 from core.stato_passaggio import StatoPassaggio
-
-
-Posizione = tuple[int, int]
+from core.stato_robot import StatoRobot
 
 
 class ProblemBuilder:
+    """Rigenera completamente il problema PDDL proposizionale."""
 
-    def build(self, mappa: Mappa, robot: StatoRobot, celle_goal: set[Posizione]) -> Problem:
-        problem = Problem("mms_proposizionale")
+    def build(
+        self,
+        mappa: Mappa,
+        robot: StatoRobot,
+        celle_goal: set[Posizione],
+    ) -> Problem:
+        problema = Problem("mms_proposizionale")
 
-        # Tipi
-        CellType = UserType("Cella")
-        DirectionType = UserType("Direzione")
+        tipo_cella = UserType("Cella")
+        tipo_direzione = UserType("Direzione")
 
-        # Fluenti
-        robot_at, connesso, robot_facing, sinistra_di, destra_di = self.creaFluenti(problem, CellType, DirectionType)
-
-        #Azioni
-        self.azione_avanza(problem, CellType, DirectionType, robot_at, connesso, robot_facing)
-
-        self.azione_gira_sinistra(problem, DirectionType, robot_facing, sinistra_di)
-
-        self.azione_gira_a_destra(problem, DirectionType, robot_facing, destra_di)
-
-        # Oggetti
-        celle = self.crea_oggetti_cella(mappa, problem, CellType)
-
-        direzioni = self.crea_oggetti_direzione(problem, DirectionType)
-
-        self.validazione_stato_corrente(robot, celle_goal, celle)
-
-        self.stato_iniziale(robot, problem, robot_at, robot_facing, celle, direzioni)
-
-        self.relazioni_direzioni(problem, sinistra_di, destra_di, direzioni)
-
-        self.passaggi_liberi(mappa, problem, connesso, celle, direzioni)
-
-        self.goal(celle_goal, problem, robot_at, celle)
-
-        return problem
-
-    def goal(self, celle_goal, problem, robot_at, celle):
-        espressioni_goal = [
-            robot_at(celle[posizione_goal])
-            for posizione_goal in celle_goal
-        ]
-
-        problem.add_goal(
-            Or(espressioni_goal)
+        (
+            robot_at,
+            connesso,
+            robot_facing,
+            sinistra_di,
+            destra_di,
+        ) = self._crea_fluenti(
+            problema,
+            tipo_cella,
+            tipo_direzione,
         )
 
-    def passaggi_liberi(self, mappa, problem, connesso, celle, direzioni):
-        for posizione, src_obj in celle.items():
-            for direzione in Direzione:
-                stato = mappa.stato_passaggio(
-                    posizione,
-                    direzione,
-                )
-
-                if stato != StatoPassaggio.LIBERO:
-                    continue
-
-                destinazione = mappa.cella_vicina(
-                    posizione,
-                    direzione,
-                )
-
-                if not mappa.posizione_valida(
-                    destinazione
-                ):
-                    continue
-
-                dest_obj = celle[destinazione]
-                dir_obj = direzioni[direzione]
-
-                problem.set_initial_value(
-                    connesso(
-                        src_obj,
-                        dest_obj,
-                        dir_obj,
-                    ),
-                    True,
-                )
-
-    def relazioni_direzioni(self, problem, sinistra_di, destra_di, direzioni):
-        rotazioni_sinistra = {
-            Direzione.NORD: Direzione.OVEST,
-            Direzione.OVEST: Direzione.SUD,
-            Direzione.SUD: Direzione.EST,
-            Direzione.EST: Direzione.NORD,
-        }
-
-        rotazioni_destra = {
-            Direzione.NORD: Direzione.EST,
-            Direzione.EST: Direzione.SUD,
-            Direzione.SUD: Direzione.OVEST,
-            Direzione.OVEST: Direzione.NORD,
-        }
-
-        for attuale, nuova in rotazioni_sinistra.items():
-            problem.set_initial_value(
-                sinistra_di(
-                    direzioni[attuale],
-                    direzioni[nuova],
-                ),
-                True,
-            )
-
-        for attuale, nuova in rotazioni_destra.items():
-            problem.set_initial_value(
-                destra_di(
-                    direzioni[attuale],
-                    direzioni[nuova],
-                ),
-                True,
-            )
-
-    def stato_iniziale(self, robot, problem, robot_at, robot_facing, celle, direzioni):
-        pos_iniziale = celle[robot.posizione]
-
-        problem.set_initial_value(
-            robot_at(pos_iniziale),
-            True,
+        self._aggiungi_azione_avanza(
+            problema,
+            tipo_cella,
+            tipo_direzione,
+            robot_at,
+            connesso,
+            robot_facing,
+        )
+        self._aggiungi_azione_gira_sinistra(
+            problema,
+            tipo_direzione,
+            robot_facing,
+            sinistra_di,
+        )
+        self._aggiungi_azione_gira_destra(
+            problema,
+            tipo_direzione,
+            robot_facing,
+            destra_di,
         )
 
-        direzione_iniziale = direzioni[
-            robot.direzione
-        ]
-
-        problem.set_initial_value(
-            robot_facing(direzione_iniziale),
-            True,
+        celle = self._crea_oggetti_cella(mappa, problema, tipo_cella)
+        direzioni = self._crea_oggetti_direzione(
+            problema,
+            tipo_direzione,
         )
 
-    def validazione_stato_corrente(self, robot, celle_goal, celle):
-        if robot.posizione not in celle:
-            raise ValueError(
-                "Posizione del robot fuori dalla mappa: "
-                f"{robot.posizione}"
-            )
+        self._valida(robot, celle_goal, celle)
+        self._imposta_stato_iniziale(
+            robot,
+            problema,
+            robot_at,
+            robot_facing,
+            celle,
+            direzioni,
+        )
+        self._imposta_relazioni_direzioni(
+            problema,
+            sinistra_di,
+            destra_di,
+            direzioni,
+        )
+        self._imposta_passaggi_liberi(
+            mappa,
+            problema,
+            connesso,
+            celle,
+            direzioni,
+        )
+        self._imposta_goal(
+            celle_goal,
+            problema,
+            robot_at,
+            celle,
+        )
 
-        if not celle_goal:
-            raise ValueError(
-                "L'insieme delle celle goal è vuoto."
-            )
+        return problema
 
-        for posizione_goal in celle_goal:
-            if posizione_goal not in celle:
-                raise ValueError(
-                    "Cella goal fuori dalla mappa: "
-                    f"{posizione_goal}"
-                )
+    def _crea_fluenti(self, problema, tipo_cella, tipo_direzione):
+        robot_at = Fluent("robot_at", BoolType(), cella=tipo_cella)
+        connesso = Fluent(
+            "connesso",
+            BoolType(),
+            cella1=tipo_cella,
+            cella2=tipo_cella,
+            direzione=tipo_direzione,
+        )
+        robot_facing = Fluent(
+            "robot_facing",
+            BoolType(),
+            direzione=tipo_direzione,
+        )
+        sinistra_di = Fluent(
+            "sinistra_di",
+            BoolType(),
+            attuale=tipo_direzione,
+            nuova=tipo_direzione,
+        )
+        destra_di = Fluent(
+            "destra_di",
+            BoolType(),
+            attuale=tipo_direzione,
+            nuova=tipo_direzione,
+        )
 
-    def crea_oggetti_direzione(self, problem, DirectionType):
-        direzioni: dict[Direzione, Object] = {
-            Direzione.NORD: Object(
-                "nord",
-                DirectionType,
-            ),
-            Direzione.SUD: Object(
-                "sud",
-                DirectionType,
-            ),
-            Direzione.OVEST: Object(
-                "ovest",
-                DirectionType,
-            ),
-            Direzione.EST: Object(
-                "est",
-                DirectionType,
-            ),
-        }
+        for fluente in (
+            robot_at,
+            connesso,
+            robot_facing,
+            sinistra_di,
+            destra_di,
+        ):
+            problema.add_fluent(fluente, default_initial_value=False)
 
-        problem.add_objects(direzioni.values())
-        return direzioni
+        return (
+            robot_at,
+            connesso,
+            robot_facing,
+            sinistra_di,
+            destra_di,
+        )
 
-    def crea_oggetti_cella(self, mappa, problem, CellType):
+    def _aggiungi_azione_avanza(
+        self,
+        problema,
+        tipo_cella,
+        tipo_direzione,
+        robot_at,
+        connesso,
+        robot_facing,
+    ) -> None:
+        avanza = InstantaneousAction(
+            "avanza",
+            partenza=tipo_cella,
+            arrivo=tipo_cella,
+            direzione=tipo_direzione,
+        )
+
+        partenza = avanza.parameter("partenza")
+        arrivo = avanza.parameter("arrivo")
+        direzione = avanza.parameter("direzione")
+
+        avanza.add_precondition(robot_at(partenza))
+        avanza.add_precondition(robot_facing(direzione))
+        avanza.add_precondition(connesso(partenza, arrivo, direzione))
+
+        avanza.add_effect(robot_at(partenza), False)
+        avanza.add_effect(robot_at(arrivo), True)
+
+        problema.add_action(avanza)
+
+    def _aggiungi_azione_gira_sinistra(
+        self,
+        problema,
+        tipo_direzione,
+        robot_facing,
+        sinistra_di,
+    ) -> None:
+        azione = InstantaneousAction(
+            "gira_sinistra",
+            attuale=tipo_direzione,
+            nuova=tipo_direzione,
+        )
+        attuale = azione.parameter("attuale")
+        nuova = azione.parameter("nuova")
+
+        azione.add_precondition(robot_facing(attuale))
+        azione.add_precondition(sinistra_di(attuale, nuova))
+        azione.add_effect(robot_facing(attuale), False)
+        azione.add_effect(robot_facing(nuova), True)
+
+        problema.add_action(azione)
+
+    def _aggiungi_azione_gira_destra(
+        self,
+        problema,
+        tipo_direzione,
+        robot_facing,
+        destra_di,
+    ) -> None:
+        azione = InstantaneousAction(
+            "gira_destra",
+            attuale=tipo_direzione,
+            nuova=tipo_direzione,
+        )
+        attuale = azione.parameter("attuale")
+        nuova = azione.parameter("nuova")
+
+        azione.add_precondition(robot_facing(attuale))
+        azione.add_precondition(destra_di(attuale, nuova))
+        azione.add_effect(robot_facing(attuale), False)
+        azione.add_effect(robot_facing(nuova), True)
+
+        problema.add_action(azione)
+
+    def _crea_oggetti_cella(
+        self,
+        mappa: Mappa,
+        problema: Problem,
+        tipo_cella,
+    ) -> dict[Posizione, Object]:
         celle: dict[Posizione, Object] = {}
 
         for x in range(mappa.larghezza):
             for y in range(mappa.altezza):
                 posizione = (x, y)
+                oggetto = Object(f"cell_{x}_{y}", tipo_cella)
+                celle[posizione] = oggetto
+                problema.add_object(oggetto)
 
-                cella = Object(
-                    f"cell_{x}_{y}",
-                    CellType,
-                )
-
-                celle[posizione] = cella
-                problem.add_object(cella)
         return celle
 
-    def azione_gira_a_destra(self, problem, DirectionType, robot_facing, destra_di):
-        gira_destra = InstantaneousAction(
-            "gira_destra",
-            attuale=DirectionType,
-            nuova=DirectionType,
-        )
+    def _crea_oggetti_direzione(
+        self,
+        problema: Problem,
+        tipo_direzione,
+    ) -> dict[Direzione, Object]:
+        direzioni = {
+            Direzione.NORD: Object("nord", tipo_direzione),
+            Direzione.EST: Object("est", tipo_direzione),
+            Direzione.SUD: Object("sud", tipo_direzione),
+            Direzione.OVEST: Object("ovest", tipo_direzione),
+        }
+        problema.add_objects(direzioni.values())
+        return direzioni
 
-        attuale_destra = gira_destra.parameter(
-            "attuale"
-        )
-        nuova_destra = gira_destra.parameter(
-            "nuova"
-        )
-
-        gira_destra.add_precondition(
-            robot_facing(attuale_destra)
-        )
-        gira_destra.add_precondition(
-            destra_di(
-                attuale_destra,
-                nuova_destra,
+    def _valida(
+        self,
+        robot: StatoRobot,
+        celle_goal: set[Posizione],
+        celle: dict[Posizione, Object],
+    ) -> None:
+        if robot.posizione not in celle:
+            raise ValueError(
+                f"Posizione del robot fuori dalla mappa: {robot.posizione}"
             )
-        )
+        if not celle_goal:
+            raise ValueError("L'insieme delle celle goal è vuoto.")
 
-        gira_destra.add_effect(
-            robot_facing(attuale_destra),
-            False,
-        )
-        gira_destra.add_effect(
-            robot_facing(nuova_destra),
+        fuori_mappa = celle_goal.difference(celle)
+        if fuori_mappa:
+            raise ValueError(f"Celle goal fuori dalla mappa: {fuori_mappa}")
+
+    def _imposta_stato_iniziale(
+        self,
+        robot,
+        problema,
+        robot_at,
+        robot_facing,
+        celle,
+        direzioni,
+    ) -> None:
+        problema.set_initial_value(robot_at(celle[robot.posizione]), True)
+        problema.set_initial_value(
+            robot_facing(direzioni[robot.direzione]),
             True,
         )
 
-        problem.add_action(gira_destra)
-
-    def azione_gira_sinistra(self, problem, DirectionType, robot_facing, sinistra_di):
-        gira_sinistra = InstantaneousAction(
-            "gira_sinistra",
-            attuale=DirectionType,
-            nuova=DirectionType,
-        )
-
-        attuale_sinistra = gira_sinistra.parameter(
-            "attuale"
-        )
-        nuova_sinistra = gira_sinistra.parameter(
-            "nuova"
-        )
-
-        gira_sinistra.add_precondition(
-            robot_facing(attuale_sinistra)
-        )
-        gira_sinistra.add_precondition(
-            sinistra_di(
-                attuale_sinistra,
-                nuova_sinistra,
+    def _imposta_relazioni_direzioni(
+        self,
+        problema,
+        sinistra_di,
+        destra_di,
+        direzioni,
+    ) -> None:
+        for attuale in Direzione:
+            problema.set_initial_value(
+                sinistra_di(
+                    direzioni[attuale],
+                    direzioni[attuale.sinistra()],
+                ),
+                True,
             )
-        )
-
-        gira_sinistra.add_effect(
-            robot_facing(attuale_sinistra),
-            False,
-        )
-        gira_sinistra.add_effect(
-            robot_facing(nuova_sinistra),
-            True,
-        )
-
-        problem.add_action(gira_sinistra)
-
-    def azione_avanza(self, problem, CellType, DirectionType, robot_at, connesso, robot_facing):
-        avanza = InstantaneousAction(
-            "avanza",
-            partenza=CellType,
-            arrivo=CellType,
-            direzione=DirectionType,
-        )
-
-        partenza = avanza.parameter("partenza")
-        arrivo = avanza.parameter("arrivo")
-        direzione_avanzamento = avanza.parameter(
-            "direzione"
-        )
-
-        avanza.add_precondition(
-            robot_at(partenza)
-        )
-        avanza.add_precondition(
-            robot_facing(direzione_avanzamento)
-        )
-        avanza.add_precondition(
-            connesso(
-                partenza,
-                arrivo,
-                direzione_avanzamento,
+            problema.set_initial_value(
+                destra_di(
+                    direzioni[attuale],
+                    direzioni[attuale.destra()],
+                ),
+                True,
             )
-        )
 
-        avanza.add_effect(
-            robot_at(partenza),
-            False,
-        )
-        avanza.add_effect(
-            robot_at(arrivo),
-            True,
-        )
+    def _imposta_passaggi_liberi(
+        self,
+        mappa,
+        problema,
+        connesso,
+        celle,
+        direzioni,
+    ) -> None:
+        for posizione, oggetto_partenza in celle.items():
+            for direzione in Direzione:
+                if (
+                    mappa.stato_passaggio(posizione, direzione)
+                    != StatoPassaggio.LIBERO
+                ):
+                    continue
 
-        problem.add_action(avanza)
+                destinazione = mappa.cella_vicina(posizione, direzione)
+                if not mappa.posizione_valida(destinazione):
+                    continue
 
-    def creaFluenti(self, problem, CellType, DirectionType):
-        robot_at = Fluent(
-            "robot_at",
-            BoolType(),
-            cella=CellType,
-        )
+                problema.set_initial_value(
+                    connesso(
+                        oggetto_partenza,
+                        celle[destinazione],
+                        direzioni[direzione],
+                    ),
+                    True,
+                )
 
-        connesso = Fluent(
-            "connesso",
-            BoolType(),
-            cella1=CellType,
-            cella2=CellType,
-            direzione=DirectionType,
-        )
-
-        robot_facing = Fluent(
-            "robot_facing",
-            BoolType(),
-            direzione=DirectionType,
-        )
-
-        sinistra_di = Fluent(
-            "sinistra_di",
-            BoolType(),
-            attuale=DirectionType,
-            nuova=DirectionType,
-        )
-
-        destra_di = Fluent(
-            "destra_di",
-            BoolType(),
-            attuale=DirectionType,
-            nuova=DirectionType,
-        )
-
-        # Assunzione di mondo chiuso:
-        # tutto è falso se non impostato esplicitamente.
-        problem.add_fluent(
-            robot_at,
-            default_initial_value=False,
-        )
-        problem.add_fluent(
-            connesso,
-            default_initial_value=False,
-        )
-        problem.add_fluent(
-            robot_facing,
-            default_initial_value=False,
-        )
-        problem.add_fluent(
-            sinistra_di,
-            default_initial_value=False,
-        )
-        problem.add_fluent(
-            destra_di,
-            default_initial_value=False,
-        )
-        return robot_at,connesso,robot_facing,sinistra_di,destra_di
+    def _imposta_goal(
+        self,
+        celle_goal,
+        problema,
+        robot_at,
+        celle,
+    ) -> None:
+        goals = [robot_at(celle[posizione]) for posizione in celle_goal]
+        problema.add_goal(goals[0] if len(goals) == 1 else Or(*goals))
