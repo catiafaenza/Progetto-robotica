@@ -2,6 +2,7 @@ from collections import deque
 
 from core.direzione import Direzione
 from core.stato_passaggio import StatoPassaggio
+from core.modifica_passaggio import ModificaPassaggio
 
 
 Posizione = tuple[int, int]
@@ -35,6 +36,9 @@ class Mappa:
         # Evita di contare come nuova visita ogni rilettura dei sensori
         # eseguita dopo una semplice rotazione nella stessa cella.
         self._ultima_cella_registrata: Posizione | None = None
+        self._modifiche_passaggi: set[
+            ModificaPassaggio
+        ] = set()
 
     def cella_vicina(
         self,
@@ -63,20 +67,28 @@ class Mappa:
         )
 
     def imposta_stato_passaggio(
-        self,
-        posizione: Posizione,
-        direzione: Direzione,
-        stato: StatoPassaggio,
-    ) -> None:
-        if not self.posizione_valida(posizione):
-            raise ValueError(f"Posizione fuori dalla mappa: {posizione}")
+            self,
+            posizione: Posizione,
+            direzione: Direzione,
+            stato: StatoPassaggio,
+        ) -> None:
+            self._aggiorna_passaggio_orientato(
+                posizione=posizione,
+                direzione=direzione,
+                stato=stato,
+            )
 
-        vicina = self.cella_vicina(posizione, direzione)
-        self.passaggi[(posizione, direzione)] = stato
+            vicina = self.cella_vicina(
+                posizione,
+                direzione,
+            )
 
-        # Lo stesso divisorio è visto dal lato opposto nella cella vicina.
-        if self.posizione_valida(vicina):
-            self.passaggi[(vicina, direzione.opposta())] = stato
+            if self.posizione_valida(vicina):
+                self._aggiorna_passaggio_orientato(
+                    posizione=vicina,
+                    direzione=direzione.opposta(),
+                    stato=stato,
+                )
 
     def segna_cella_visitata(self, posizione: Posizione) -> None:
         if not self.posizione_valida(posizione):
@@ -265,3 +277,38 @@ class Mappa:
             raise RuntimeError("Errore durante la ricostruzione del percorso.")
 
         return percorso
+
+    def estrai_modifiche_passaggi(
+    self,
+    ) -> set[ModificaPassaggio]:
+        modifiche = set(self._modifiche_passaggi)
+        self._modifiche_passaggi.clear()
+        return modifiche
+
+    def _aggiorna_passaggio_orientato(
+        self,
+        *,
+        posizione: Posizione,
+        direzione: Direzione,
+        stato: StatoPassaggio,
+    ) -> None:
+        chiave = posizione, direzione
+
+        stato_precedente = self.passaggi.get(
+            chiave,
+            StatoPassaggio.SCONOSCIUTO,
+        )
+
+        if stato_precedente == stato:
+            return
+
+        self.passaggi[chiave] = stato
+
+        self._modifiche_passaggi.add(
+            ModificaPassaggio(
+                posizione=posizione,
+                direzione=direzione,
+                stato=stato,
+            )
+        )
+            
