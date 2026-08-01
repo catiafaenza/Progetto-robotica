@@ -12,14 +12,16 @@ class MetricheChiamataPlanner:
 
     tempo_generazione: float
     tempo_planning: float
-
     successo: bool
-
     lunghezza_piano: int | None = None
+    costo_piano: int | None = None
+    piano_ottimo: bool = False
     stati_espansi: int | None = None
 
 @dataclass
 class MetricheRun:
+
+    tipo_problema: str
     strategia_aggiornamento: str
 
     successo: bool = False
@@ -39,6 +41,8 @@ class MetricheRun:
     azioni_totali: int = 0
     avanzamenti: int = 0
     rotazioni_totali: int = 0
+
+    costo_eseguito_totale: int = 0
 
     chiamate: list[MetricheChiamataPlanner] = field(
         default_factory=list

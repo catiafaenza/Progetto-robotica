@@ -8,7 +8,10 @@ from planning.pddl_planner import (
     RisultatoPianificazione,
 )
 from planning.plan_executor import RisultatoEsecuzione
-
+from unified_planning.engines import (
+    PlanGenerationResultStatus,
+)
+from planning.numerico.problem_builder_numerico import CostiAzioni
 
 class RaccoglitoreMetriche:
     """
@@ -18,13 +21,15 @@ class RaccoglitoreMetriche:
 
     def __init__(
         self,
+        tipo_problema: str,
         strategia_aggiornamento: str,
+        costi_azioni: CostiAzioni | None = None,
     ) -> None:
         self.dati = MetricheRun(
-            strategia_aggiornamento=(
-                strategia_aggiornamento
-            )
+            tipo_problema=tipo_problema,
+            strategia_aggiornamento=strategia_aggiornamento
         )
+        self.costi_azioni = costi_azioni or CostiAzioni()
 
     def inizia_chiamata_planner(self) -> int:
         self.dati.chiamate_planner += 1
@@ -45,6 +50,7 @@ class RaccoglitoreMetriche:
         tempo_generazione: float,
         risultato: RisultatoPianificazione,
         lunghezza_piano: int | None,
+        costo_piano: int | None,
     ) -> None:
         """
         Registra le metriche relative a una chiamata
@@ -71,6 +77,11 @@ class RaccoglitoreMetriche:
                 ),
                 successo=risultato.successo,
                 lunghezza_piano=lunghezza_piano,
+                costo_piano=costo_piano,
+                piano_ottimo=(
+                    risultato.stato
+                    == PlanGenerationResultStatus.SOLVED_OPTIMALLY
+                ),
                 stati_espansi=risultato.stati_espansi,
             )
         )
@@ -91,6 +102,16 @@ class RaccoglitoreMetriche:
             esecuzione.rotazioni_sinistra
             + esecuzione.rotazioni_destra
         )
+
+        
+        self.dati.costo_eseguito_totale += (
+            esecuzione.avanzamenti
+            * self.costi_azioni.avanzamento
+            + esecuzione.rotazioni_sinistra
+            * self.costi_azioni.rotazione_sinistra
+            + esecuzione.rotazioni_destra
+            * self.costi_azioni.rotazione_destra
+    )
 
     def registra_piano_invalidato(self) -> None:
         self.dati.piani_invalidati += 1

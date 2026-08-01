@@ -35,6 +35,10 @@ def stampa_riepilogo(
     debug("===== RIEPILOGO =====")
 
     debug(
+        "Tipo di problema:",
+        metriche.tipo_problema,
+    )
+    debug(
         "Strategia aggiornamento:",
         metriche.strategia_aggiornamento,
     )
@@ -141,6 +145,10 @@ def stampa_riepilogo(
         "Rotazioni totali:",
         metriche.rotazioni_totali,
     )
+    debug(
+        "Costo eseguito totale:",
+        metriche.costo_eseguito_totale,
+    )
 
     if not metriche.chiamate:
         return
@@ -150,18 +158,15 @@ def stampa_riepilogo(
 
     for chiamata in metriche.chiamate:
         debug(
-            f"Chiamata {chiamata.indice}:",
-            f"tipo={chiamata.tipo_goal}",
-            f"pos={chiamata.posizione_robot}",
-            (
-                "generazione="
-                f"{chiamata.tempo_generazione:.6f}s"
-            ),
-            (
-                "planning="
-                f"{chiamata.tempo_planning:.6f}s"
-            ),
-            f"piano={chiamata.lunghezza_piano}",
-            f"espansi={chiamata.stati_espansi}",
-            f"successo={chiamata.successo}",
+            f"Chiamata {chiamata.indice}: "
+            f"tipo={chiamata.tipo_goal} "
+            f"pos={chiamata.posizione_robot} "
+            f"generazione={chiamata.tempo_generazione:.6f}s "
+            f"planning={chiamata.tempo_planning:.6f}s "
+            f"piano={chiamata.lunghezza_piano} "
+            f"costo={chiamata.costo_piano} "
+            f"ottimo={chiamata.piano_ottimo} "
+            f"espansi={chiamata.stati_espansi} "
+            f"successo={chiamata.successo}"
+           
         )

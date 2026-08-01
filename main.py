@@ -13,8 +13,8 @@ from planning.gestore_pianificazione import (
 )
 from planning.pddl_planner import PDDLPlanner
 from planning.plan_executor import PlanExecutor
-from planning.proposizionale.problem_builder_factory import crea_problem_builder
-from planning.strategia_aggiornamento import StrategiaAggiornamento
+from planning.problem_builder_factory import crea_problem_builder
+from planning.strategia_aggiornamento import StrategiaAggiornamento, TipoProblema
 
 
 #metodo per trovare il centro del labirinto e quindi il goal    
@@ -61,11 +61,14 @@ def crea_navigatore() -> NavigatoreMicromouse:
 
     osservatore = Osservatore()
     selettore = SelettoreFrontiera()
-    strategia_aggiornamento = StrategiaAggiornamento.INCREMENTALE
-    builder = crea_problem_builder(strategia_aggiornamento)
-    planner = PDDLPlanner()
+    tipo_problema = TipoProblema.NUMERICO
+    strategia_aggiornamento = StrategiaAggiornamento.COMPLETA
+    builder = crea_problem_builder(tipo_problema, strategia_aggiornamento)
+    #nome_planner = "fast-downward-opt"
+    nome_planner = "enhsp-opt"
+    planner = PDDLPlanner(nome_planner)
     executor = PlanExecutor()
-    metriche = RaccoglitoreMetriche(strategia_aggiornamento=strategia_aggiornamento)
+    metriche = RaccoglitoreMetriche(tipo_problema=tipo_problema.value, strategia_aggiornamento=strategia_aggiornamento.value)
 
     gestore_pianificazione = GestorePianificazione(
         selettore=selettore,

@@ -2,6 +2,9 @@ from collections import deque
 from dataclasses import dataclass
 from time import perf_counter
 
+from unified_planning.engines import (
+    PlanGenerationResultStatus,
+)
 from unified_planning.plans import ActionInstance
 
 from core.mappa_parziale import Mappa, Posizione
@@ -10,7 +13,9 @@ from core.stato_robot import StatoRobot
 from metriche.raccoglitore import RaccoglitoreMetriche
 from planning.pddl_planner import PDDLPlanner
 from planning.plan_executor import PlanExecutor
-from planning.proposizionale.problem_builder_completo import ProblemBuilder
+from planning.proposizionale.problem_builder_completo import (
+    ProblemBuilder,
+)
 from utils.debug import debug
 
 
@@ -23,7 +28,15 @@ class EsitoPianificazione:
 class GestorePianificazione:
     """
     Mantiene il goal e il piano correnti e coordina:
-    selezione del goal, costruzione del problema e planner.
+
+    - selezione del prossimo goal;
+    - costruzione del problema PDDL;
+    - invocazione del planner;
+    - estrazione del piano;
+    - registrazione delle metriche.
+
+    Il builder può essere proposizionale oppure numerico,
+    purché erediti da ProblemBuilder.
     """
 
     def __init__(
@@ -60,7 +73,10 @@ class GestorePianificazione:
     def ha_piano(self) -> bool:
         return bool(self._piano_corrente)
 
-    def goal_raggiunto(self, posizione: Posizione) -> bool:
+    def goal_raggiunto(
+        self,
+        posizione: Posizione,
+    ) -> bool:
         return (
             bool(self._goal_correnti)
             and posizione in self._goal_correnti
@@ -76,7 +92,10 @@ class GestorePianificazione:
 
     def prossima_azione(self) -> ActionInstance:
         if not self._piano_corrente:
-            raise RuntimeError("Non è disponibile alcuna azione.")
+            raise RuntimeError(
+                "Non è disponibile alcuna azione."
+            )
+
         return self._piano_corrente[0]
 
     def conferma_azione_eseguita(self) -> None:
@@ -84,6 +103,7 @@ class GestorePianificazione:
             raise RuntimeError(
                 "Non è presente un'azione da confermare."
             )
+
         self._piano_corrente.popleft()
 
     def pianifica(
@@ -100,7 +120,6 @@ class GestorePianificazione:
         )
 
         if scelta is None:
-            
             return EsitoPianificazione(
                 successo=False,
                 motivo_terminazione=(
@@ -119,6 +138,7 @@ class GestorePianificazione:
         indice_chiamata = (
             self.metriche.inizia_chiamata_planner()
         )
+
         tempo_generazione = 0.0
 
         try:
@@ -129,28 +149,42 @@ class GestorePianificazione:
                 robot=robot,
                 celle_goal=self._goal_correnti,
             )
-            
 
             tempo_generazione = (
                 perf_counter() - inizio_generazione
             )
+
             self.metriche.registra_generazione(
                 tempo_generazione
             )
 
-            risultato = self.planner.solve(problema)
+            risultato = self.planner.solve(
+                problema
+            )
 
         except Exception as errore:
             self.metriche.registra_fallimento_planner()
-            debug("Errore pianificazione:", repr(errore))
-            self.invalida_piano()
-            return EsitoPianificazione(
-                successo=False,
-                motivo_terminazione="errore_pianificazione",
+
+            debug(
+                "Errore pianificazione:",
+                repr(errore),
             )
 
-        if not risultato.successo or risultato.piano is None:
+            self.invalida_piano()
+
+            return EsitoPianificazione(
+                successo=False,
+                motivo_terminazione=(
+                    "errore_pianificazione"
+                ),
+            )
+
+        if (
+            not risultato.successo
+            or risultato.piano is None
+        ):
             self.metriche.registra_fallimento_planner()
+
             self.metriche.registra_risultato_planning(
                 indice=indice_chiamata,
                 tipo_goal=self._tipo_goal,
@@ -158,29 +192,66 @@ class GestorePianificazione:
                 tempo_generazione=tempo_generazione,
                 risultato=risultato,
                 lunghezza_piano=None,
+                costo_piano=None,
+                
             )
 
-            debug("Planner senza piano:", risultato.stato)
-            debug("Output planner:", risultato.output_planner)
+            debug(
+                "Planner senza piano:",
+                risultato.stato,
+            )
+
+            debug(
+                "Output planner:",
+                risultato.output_planner,
+            )
 
             self.invalida_piano()
+
             return EsitoPianificazione(
                 successo=False,
-                motivo_terminazione="planner_senza_piano",
+                motivo_terminazione=(
+                    "planner_senza_piano"
+                ),
             )
 
         try:
             azioni = self.executor.estrai_azioni(
                 risultato.piano
             )
-            self._piano_corrente = deque(azioni)
+
+            lunghezza_piano = len(azioni)
+
+            costo_piano = (
+                self.builder.calcola_costo_piano(
+                    risultato.piano
+                )
+            )
+
+            piano_ottimo = (
+                risultato.stato
+                == PlanGenerationResultStatus.SOLVED_OPTIMALLY
+            )
+
+            self._piano_corrente = deque(
+                azioni
+            )
+
         except (TypeError, ValueError) as errore:
             self.metriche.registra_fallimento_planner()
-            debug("Piano non eseguibile:", errore)
+
+            debug(
+                "Piano non eseguibile:",
+                errore,
+            )
+
             self.invalida_piano()
+
             return EsitoPianificazione(
                 successo=False,
-                motivo_terminazione="piano_non_sequenziale",
+                motivo_terminazione=(
+                    "piano_non_sequenziale"
+                ),
             )
 
         self.metriche.registra_risultato_planning(
@@ -189,7 +260,8 @@ class GestorePianificazione:
             robot=robot,
             tempo_generazione=tempo_generazione,
             risultato=risultato,
-            lunghezza_piano=len(self._piano_corrente),
+            lunghezza_piano=lunghezza_piano,
+            costo_piano=costo_piano,
         )
 
         debug(
@@ -198,23 +270,28 @@ class GestorePianificazione:
                 azione.action.name
                 for azione in self._piano_corrente
             ],
+            f"lunghezza={lunghezza_piano}",
+            f"costo={costo_piano}",
+            f"ottimo={piano_ottimo}",
             (
                 "planning="
                 f"{risultato.tempo_pianificazione:.6f}s"
             ),
             f"espansi={risultato.stati_espansi}",
-            f"generati={risultato.stati_generati}",
             f"dead_end={risultato.dead_end_planner}",
         )
 
         if not self._piano_corrente:
             self.invalida_piano()
+
             return EsitoPianificazione(
                 successo=False,
                 motivo_terminazione="piano_vuoto",
             )
 
-        return EsitoPianificazione(successo=True)
+        return EsitoPianificazione(
+            successo=True
+        )
 
     def _scegli_goal(
         self,
@@ -223,14 +300,21 @@ class GestorePianificazione:
         robot: StatoRobot,
         centri: set[Posizione],
     ) -> tuple[set[Posizione], str] | None:
-        distanze = mappa.distanze_da(robot.posizione)
+        distanze = mappa.distanze_da(
+            robot.posizione
+        )
 
-        centri_raggiungibili = centri.intersection(
-            distanze.keys()
+        centri_raggiungibili = (
+            centri.intersection(
+                distanze.keys()
+            )
         )
 
         if centri_raggiungibili:
-            return centri_raggiungibili, "centro"
+            return (
+                centri_raggiungibili,
+                "centro",
+            )
 
         frontiera = self.selettore.scegli(
             mappa=mappa,
@@ -240,4 +324,7 @@ class GestorePianificazione:
         if frontiera is None:
             return None
 
-        return {frontiera}, "frontiera"
+        return (
+            {frontiera},
+            "frontiera",
+        )

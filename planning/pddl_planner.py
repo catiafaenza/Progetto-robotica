@@ -1,5 +1,4 @@
 import re
-import sys
 
 from dataclasses import dataclass
 from io import StringIO
@@ -29,7 +28,6 @@ class RisultatoPianificazione:
     nome_planner: str
 
     stati_espansi: int | None
-    stati_generati: int | None
     dead_end_planner: int | None
 
     output_planner: str
@@ -50,7 +48,7 @@ class RisultatoPianificazione:
 class PDDLPlanner:
     def __init__(
         self,
-        nome_planner: str = "fast-downward-opt",
+        nome_planner: str,
     ) -> None:
         self.nome_planner = nome_planner
 
@@ -77,17 +75,26 @@ class PDDLPlanner:
 
         stati_espansi = self._estrai_intero(
             output=output_planner,
-            pattern=r"Expanded\s+(\d+)\s+state",
+            patterns=[
+                # Fast Downward
+                r"Expanded\s+(\d+)\s+state",
+
+                # ENHSP
+                r"Expanded Nodes:\s*(\d+)",
+            ],
         )
 
-        stati_generati = self._estrai_intero(
-            output=output_planner,
-            pattern=r"Generated\s+(\d+)\s+state",
-        )
+         
 
         dead_end_planner = self._estrai_intero(
             output=output_planner,
-            pattern=r"Dead ends:\s+(\d+)\s+state",
+            patterns=[
+                # Fast Downward
+                r"Dead ends:\s*(\d+)\s+state",
+
+                # ENHSP
+                r"Number of Dead-Ends detected:\s*(\d+)",
+            ],
         )
 
         return RisultatoPianificazione(
@@ -96,7 +103,6 @@ class PDDLPlanner:
             stato=risultato.status,
             nome_planner=self.nome_planner,
             stati_espansi=stati_espansi,
-            stati_generati=stati_generati,
             dead_end_planner=dead_end_planner,
             output_planner=output_planner,
         )
@@ -104,17 +110,22 @@ class PDDLPlanner:
     def _estrai_intero(
         self,
         output: str,
-        pattern: str,
+        patterns: list[str],
     ) -> int | None:
-        corrispondenze = re.findall(
-            pattern,
-            output,
-            flags=re.IGNORECASE,
-        )
+        """
+        Cerca una metrica usando più pattern, così da
+        supportare formati prodotti da planner diversi.
+        """
+        for pattern in patterns:
+            corrispondenze = re.findall(
+                pattern,
+                output,
+                flags=re.IGNORECASE,
+            )
 
-        if not corrispondenze:
-            return None
+            if corrispondenze:
+                return int(
+                    corrispondenze[-1]
+                )
 
-        # Fast Downward può stampare più valori durante
-        # la ricerca. L'ultimo è normalmente il riepilogo finale.
-        return int(corrispondenze[-1])
+        return None
