@@ -36,8 +36,6 @@ class MetricheRun:
     stati_espansi_totali: int = 0
     chiamate_con_stati_espansi: int = 0
 
-    piani_invalidati: int = 0
-
     azioni_totali: int = 0
     avanzamenti: int = 0
     rotazioni_totali: int = 0

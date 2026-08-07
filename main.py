@@ -16,6 +16,7 @@ from planning.plan_executor import PlanExecutor
 from planning.problem_builder_factory import crea_problem_builder
 from planning.strategia_aggiornamento import StrategiaAggiornamento, TipoProblema
 
+from navigazione.speed_run import SpeedRun
 
 #metodo per trovare il centro del labirinto e quindi il goal    
 def celle_centrali(
@@ -100,6 +101,24 @@ def main() -> None:
         mappa=navigatore.mappa,
         robot=navigatore.robot,
     )
+
+    # La speed run viene eseguita solo se
+    # l'esplorazione ha effettivamente raggiunto il centro.
+    if navigatore.robot.posizione not in navigatore.centri:
+        return
+
+    speed_run = SpeedRun(
+        interfaccia=navigatore.interfaccia,
+        robot=navigatore.robot,
+        mappa=navigatore.mappa,
+        gestore_pianificazione=(
+            navigatore.gestore_pianificazione
+        ),
+        executor=navigatore.executor,
+        centri=navigatore.centri,
+    )
+
+    speed_run.esegui()
 
 
 if __name__ == "__main__":

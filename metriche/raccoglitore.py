@@ -113,8 +113,7 @@ class RaccoglitoreMetriche:
             * self.costi_azioni.rotazione_destra
     )
 
-    def registra_piano_invalidato(self) -> None:
-        self.dati.piani_invalidati += 1
+
 
     def termina(
         self,

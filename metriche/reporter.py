@@ -128,10 +128,7 @@ def stampa_riepilogo(
             "non disponibili",
         )
 
-    debug(
-        "Piani invalidati:",
-        metriche.piani_invalidati,
-    )
+  
 
     debug(
         "Azioni totali:",

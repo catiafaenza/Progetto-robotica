@@ -90,6 +90,11 @@ class NavigatoreMicromouse:
             lettura=lettura,
         )
 
+        self.interfaccia.colora_cella(
+        self.robot.posizione,
+        "G",
+    )
+
     def _agisci(self) -> None:
         prossima_azione = (
             self.gestore_pianificazione.prossima_azione()

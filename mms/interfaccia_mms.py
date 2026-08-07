@@ -8,6 +8,16 @@ from core.stato_robot import StatoRobot
 
 
 class InterfacciaMMS:
+
+
+    def colora_cella(
+        self,
+        posizione: tuple[int, int],
+        colore: str = "G",
+    ) -> None:
+        x, y = posizione
+        API.setColor(x, y, colore)
+        
     def larghezza_labirinto(self) -> int:
         return API.mazeWidth()
 
