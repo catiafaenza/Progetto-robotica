@@ -1,49 +1,19 @@
-from dataclasses import dataclass
-
-from unified_planning.model import Fluent, Object, Problem
+from unified_planning.model import Fluent, Problem
 from unified_planning.model.metrics import MinimizeExpressionOnFinalState
-from unified_planning.shortcuts import (
-    BoolType,
-    InstantaneousAction,
-    IntType,
-    Or,
-    UserType,
-)
 from unified_planning.plans import Plan, SequentialPlan
-from core.direzione import Direzione
-from core.mappa_parziale import Mappa, Posizione
-from core.stato_passaggio import StatoPassaggio
-from core.stato_robot import StatoRobot
-from planning.proposizionale.problem_builder_completo import ProblemBuilder
+from unified_planning.shortcuts import InstantaneousAction, IntType
 
-@dataclass(frozen=True)
-class CostiAzioni:
-    avanzamento: int = 1
-    rotazione_destra: int = 2
-    rotazione_sinistra: int= 2
+from planning.numerico.costi_azioni import CostiAzioni
 
-    def __post_init__(self):
-        if self.avanzamento < 0 or self.rotazione_destra < 0 or self.rotazione_sinistra < 0:
-            raise ValueError("I costi delle azioni devono essere non negativi.")
 
-class ProblemBuilderNumerico(ProblemBuilder):
+class SupportoNumerico:
     """
-    Rigenera completamente il problema PDDL numerico.
+    Comportamento numerico condiviso dai builder completo e incrementale.
 
-    Estende il builder proposizionale aggiungendo:
-
-    - il fluente numerico costo_totale;
-    - l'incremento del costo per ogni azione;
-    - la minimizzazione del costo totale finale.
+    La classe che utilizza questo supporto deve assegnare self.costi.
     """
 
-    nome_problema = "mms_numerico"
-
-    def __init__(
-        self,
-        costi: CostiAzioni | None = None,
-    ) -> None:
-        self.costi = costi or CostiAzioni()
+    costi: CostiAzioni
 
     def _crea_fluenti_specifici(
         self,
@@ -67,10 +37,8 @@ class ProblemBuilderNumerico(ProblemBuilder):
         azione: InstantaneousAction,
         fluenti: dict[str, Fluent],
     ) -> None:
-        costo_totale = fluenti["costo_totale"]
-
         azione.add_increase_effect(
-            costo_totale,
+            fluenti["costo_totale"],
             self.costi.avanzamento,
         )
 
@@ -79,10 +47,8 @@ class ProblemBuilderNumerico(ProblemBuilder):
         azione: InstantaneousAction,
         fluenti: dict[str, Fluent],
     ) -> None:
-        costo_totale = fluenti["costo_totale"]
-
         azione.add_increase_effect(
-            costo_totale,
+            fluenti["costo_totale"],
             self.costi.rotazione_sinistra,
         )
 
@@ -91,10 +57,8 @@ class ProblemBuilderNumerico(ProblemBuilder):
         azione: InstantaneousAction,
         fluenti: dict[str, Fluent],
     ) -> None:
-        costo_totale = fluenti["costo_totale"]
-
         azione.add_increase_effect(
-            costo_totale,
+            fluenti["costo_totale"],
             self.costi.rotazione_destra,
         )
 

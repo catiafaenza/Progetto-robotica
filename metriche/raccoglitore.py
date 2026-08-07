@@ -11,7 +11,7 @@ from planning.plan_executor import RisultatoEsecuzione
 from unified_planning.engines import (
     PlanGenerationResultStatus,
 )
-from planning.numerico.problem_builder_numerico import CostiAzioni
+from planning.numerico.problem_builder_completo import CostiAzioni
 
 class RaccoglitoreMetriche:
     """

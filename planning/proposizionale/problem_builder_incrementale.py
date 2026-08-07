@@ -28,7 +28,7 @@ class ProblemBuilderIncrementale(
 
     def __init__(self) -> None:
         self._problema: Problem | None = None
-
+        self._fluenti: dict[str, Fluent] = {}
         self._robot_at: Fluent | None = None
         self._connesso: Fluent | None = None
         self._robot_facing: Fluent | None = None
@@ -90,31 +90,26 @@ class ProblemBuilderIncrementale(
 
             return self._richiedi_problema()
 
-    def _inizializza_problema(
-        self,
-        mappa: Mappa,
-    ) -> None:
+    def _inizializza_problema(self, mappa: Mappa ) -> None:
         self._larghezza = mappa.larghezza
         self._altezza = mappa.altezza
 
-        problema = Problem(
-            "mms_proposizionale_incrementale"
-        )
+        problema = Problem(self.nome_problema)
 
         tipo_cella = UserType("Cella")
         tipo_direzione = UserType("Direzione")
 
-        (
-            self._robot_at,
-            self._connesso,
-            self._robot_facing,
-            self._sinistra_di,
-            self._destra_di,
-        ) = self._crea_fluenti(
+        self._fluenti = self._crea_fluenti(
             problema=problema,
             tipo_cella=tipo_cella,
             tipo_direzione=tipo_direzione,
         )
+
+        self._robot_at = self._fluenti["robot_at"]
+        self._connesso = self._fluenti["connesso"]
+        self._robot_facing = self._fluenti["robot_facing"]
+        self._sinistra_di = self._fluenti["sinistra_di"]
+        self._destra_di = self._fluenti["destra_di"]
 
         self._aggiungi_azione_avanza(
             problema=problema,
@@ -123,6 +118,7 @@ class ProblemBuilderIncrementale(
             robot_at=self._robot_at,
             connesso=self._connesso,
             robot_facing=self._robot_facing,
+            fluenti=self._fluenti,
         )
 
         self._aggiungi_azione_gira_sinistra(
@@ -130,6 +126,7 @@ class ProblemBuilderIncrementale(
             tipo_direzione=tipo_direzione,
             robot_facing=self._robot_facing,
             sinistra_di=self._sinistra_di,
+            fluenti=self._fluenti,
         )
 
         self._aggiungi_azione_gira_destra(
@@ -137,6 +134,7 @@ class ProblemBuilderIncrementale(
             tipo_direzione=tipo_direzione,
             robot_facing=self._robot_facing,
             destra_di=self._destra_di,
+            fluenti=self._fluenti,
         )
 
         self._celle = self._crea_oggetti_cella(
@@ -145,11 +143,9 @@ class ProblemBuilderIncrementale(
             tipo_cella=tipo_cella,
         )
 
-        self._direzioni = (
-            self._crea_oggetti_direzione(
-                problema=problema,
-                tipo_direzione=tipo_direzione,
-            )
+        self._direzioni = self._crea_oggetti_direzione(
+            problema=problema,
+            tipo_direzione=tipo_direzione,
         )
 
         self._imposta_relazioni_direzioni(
@@ -157,6 +153,16 @@ class ProblemBuilderIncrementale(
             sinistra_di=self._sinistra_di,
             destra_di=self._destra_di,
             direzioni=self._direzioni,
+        )
+
+        self._imposta_stato_iniziale_specifico(
+            problema=problema,
+            fluenti=self._fluenti,
+        )
+
+        self._aggiungi_metriche(
+            problema=problema,
+            fluenti=self._fluenti,
         )
 
         self._problema = problema
