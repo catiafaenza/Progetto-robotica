@@ -63,10 +63,7 @@ def stampa_riepilogo(
         "Chiamate planner:",
         metriche.chiamate_planner,
     )
-    debug(
-        "Chiamate fallite:",
-        metriche.chiamate_fallite,
-    )
+    
 
     debug(
         "Tempo generazione totale:",

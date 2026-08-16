@@ -1,0 +1,13 @@
+Configurazione,Dimensione,Chiamate planner,Completato,Interrotto per limite,Planning medio (s),Stati espansi medi,Generazione media (s),Replanning medio (s)
+Prop. completa,8x8,21,0,1,0.3736,2.00,0.00105,
+Prop. completa,16x16,21,0,1,4.1356,2.10,0.00271,
+Prop. completa,32x32,21,0,1,66.9759,2.38,0.01931,
+Prop. incrementale,8x8,21,0,1,0.3786,2.00,0.00020,
+Prop. incrementale,16x16,21,0,1,5.0009,2.10,0.00034,
+Prop. incrementale,32x32,21,0,1,79.3718,2.38,0.00118,
+Num. completa,8x8,21,0,1,0.4263,2.29,0.00111,
+Num. completa,16x16,21,0,1,4.2226,2.33,0.00274,
+Num. completa,32x32,21,0,1,66.6418,2.62,0.02031,
+Num. incrementale,8x8,21,0,1,0.4211,2.29,0.00016,
+Num. incrementale,16x16,21,0,1,5.0631,2.33,0.00031,
+Num. incrementale,32x32,21,0,1,79.6573,2.62,0.00117,

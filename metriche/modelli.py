@@ -28,7 +28,6 @@ class MetricheRun:
     motivo_terminazione: str = "limite_cicli"
 
     chiamate_planner: int = 0
-    chiamate_fallite: int = 0
 
     tempo_generazione_totale: float = 0.0
     tempo_planning_totale: float = 0.0

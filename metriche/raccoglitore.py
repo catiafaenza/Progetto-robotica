@@ -86,8 +86,6 @@ class RaccoglitoreMetriche:
             )
         )
 
-    def registra_fallimento_planner(self) -> None:
-        self.dati.chiamate_fallite += 1
 
     def registra_esecuzione(
         self,

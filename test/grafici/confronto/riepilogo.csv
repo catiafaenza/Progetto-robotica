@@ -1,0 +1,5 @@
+Configurazione,Numero maze,Tasso successo (%),Planning totale medio (s),Planning medio per chiamata (s),Stati espansi medi,Generazione problema media (s),Generazione media per chiamata (s),Replanning totale medio (s),Replanning medio per chiamata (s),Chiamate planner medie,Azioni totali medie,Rotazioni medie,Lunghezza speed run media,Costo speed run medio,Tempo planning speed run medio (s)
+Prop. completa,3,100.0,662.858,3.8094,550.67,0.9839,0.00525,663.842,3.8147,174.00,369.00,139.00,117.67,,3.9605
+Prop. incrementale,3,100.0,672.881,3.8666,550.67,0.0378,0.00022,672.919,3.8668,174.00,369.00,139.00,117.67,,4.0337
+Num. completa,3,100.0,675.146,3.8725,566.33,1.0089,0.00541,676.155,3.8779,174.00,367.67,137.67,117.67,152.67,3.9921
+Num. incrementale,3,100.0,687.224,3.9409,566.33,0.0361,0.00021,687.260,3.9411,174.00,367.67,137.67,117.67,152.67,4.0903

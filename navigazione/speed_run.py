@@ -1,10 +1,10 @@
-
 from core.azioni import Azioni
 from core.direzione import Direzione
 from core.mappa_parziale import Mappa, Posizione
 from core.stato_robot import StatoRobot
 from mms.interfaccia_mms import InterfacciaMMS
 from planning.gestore_pianificazione import GestorePianificazione
+from planning.pddl_planner import PDDLPlanner
 from planning.plan_executor import PlanExecutor
 from utils.debug import debug
 
@@ -17,51 +17,64 @@ class SpeedRun:
         robot: StatoRobot,
         mappa: Mappa,
         gestore_pianificazione: GestorePianificazione,
+        planner_speed_run: PDDLPlanner,
         executor: PlanExecutor,
         centri: set[Posizione],
     ) -> None:
+
         self.interfaccia = interfaccia
         self.robot = robot
         self.mappa = mappa
         self.gestore = gestore_pianificazione
+        self.planner_speed_run = planner_speed_run
         self.executor = executor
         self.centri = centri
 
-    def esegui(self) -> None:
+    def esegui(self) -> dict | None:
+
         debug("\n===== SPEED RUN =====")
 
-        # Riporta fisicamente il robot alla posizione iniziale.
         if not self._ritorna_all_inizio():
-            debug("Impossibile tornare all'inizio.")
+            debug(
+                "Impossibile tornare all'inizio."
+            )
             return
 
-        # La speed run parte sempre da (0, 0) verso NORD.
         self._orienta_nord()
 
-        # Nuova pianificazione usando la mappa già conosciuta.
         problema = self.gestore.builder.build(
             mappa=self.mappa,
             robot=self.robot,
             celle_goal=self.centri,
         )
 
-        risultato = self.gestore.planner.solve(problema)
+        risultato = self.planner_speed_run.solve(
+            problema
+        )
 
         if risultato.piano is None:
-            debug("Nessun piano trovato per la speed run.")
+            debug(
+                "Nessun piano trovato "
+                "per la speed run."
+            )
             return
 
         azioni = self.executor.estrai_azioni(
             risultato.piano
         )
 
-        costo_piano = self.gestore.builder.calcola_costo_piano(
-            risultato.piano
+        costo_piano = (
+            self.gestore.builder.calcola_costo_piano(
+                risultato.piano
+            )
         )
 
         debug(
             "Piano speed run:",
-            [azione.action.name for azione in azioni],
+            [
+                azione.action.name
+                for azione in azioni
+            ],
         )
 
         debug(
@@ -71,13 +84,15 @@ class SpeedRun:
             f"Costo piano: {costo_piano}",
         )
 
-        # Esecuzione completa del piano senza nuova esplorazione.
         for azione in azioni:
-            esecuzione = self.executor.esegui_azione_pddl(
-                azione_pddl=azione,
-                interfaccia=self.interfaccia,
-                robot=self.robot,
-                mappa=self.mappa,
+
+            esecuzione = (
+                self.executor.esegui_azione_pddl(
+                    azione_pddl=azione,
+                    interfaccia=self.interfaccia,
+                    robot=self.robot,
+                    mappa=self.mappa,
+                )
             )
 
             if not esecuzione.successo:
@@ -87,7 +102,10 @@ class SpeedRun:
                 )
                 return
 
-        successo = self.robot.posizione in self.centri
+        successo = (
+            self.robot.posizione
+            in self.centri
+        )
 
         debug(
             "Speed run terminata.",
@@ -99,7 +117,18 @@ class SpeedRun:
             f"costo_piano={costo_piano}",
         )
 
+        return {
+            "successo": successo,
+            "tempo_planning":
+                risultato.tempo_pianificazione,
+            "lunghezza_piano":
+                len(azioni),
+            "costo_piano":
+                costo_piano,
+        }
+
     def _ritorna_all_inizio(self) -> bool:
+
         debug(
             "Ritorno all'inizio:",
             f"{self.robot.posizione} -> (0, 0)",
@@ -111,7 +140,9 @@ class SpeedRun:
             celle_goal={(0, 0)},
         )
 
-        risultato = self.gestore.planner.solve(problema)
+        risultato = self.planner_speed_run.solve(
+            problema
+        )
 
         if risultato.piano is None:
             return False
@@ -122,27 +153,43 @@ class SpeedRun:
 
         debug(
             "Piano ritorno:",
-            [azione.action.name for azione in azioni],
+            [
+                azione.action.name
+                for azione in azioni
+            ],
         )
 
         for azione in azioni:
-            esecuzione = self.executor.esegui_azione_pddl(
-                azione_pddl=azione,
-                interfaccia=self.interfaccia,
-                robot=self.robot,
-                mappa=self.mappa,
+
+            esecuzione = (
+                self.executor.esegui_azione_pddl(
+                    azione_pddl=azione,
+                    interfaccia=self.interfaccia,
+                    robot=self.robot,
+                    mappa=self.mappa,
+                )
             )
 
             if not esecuzione.successo:
                 return False
 
-        return self.robot.posizione == (0, 0)
+        return (
+            self.robot.posizione == (0, 0)
+        )
 
     def _orienta_nord(self) -> None:
-        while self.robot.direzione != Direzione.NORD:
 
-            if self.robot.direzione.destra() == Direzione.NORD:
+        while (
+            self.robot.direzione
+            != Direzione.NORD
+        ):
+
+            if (
+                self.robot.direzione.destra()
+                == Direzione.NORD
+            ):
                 azione = Azioni.GIRA_DESTRA
+
             else:
                 azione = Azioni.GIRA_SINISTRA
 
@@ -151,4 +198,3 @@ class SpeedRun:
                 robot=self.robot,
                 mappa=self.mappa,
             )
-
