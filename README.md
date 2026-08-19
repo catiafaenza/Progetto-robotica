@@ -160,11 +160,6 @@ Eseguito con `python3 -m test.test_scalabilita`, su un maze per dimensione (seed
 
 > Il limite di 20 chiamate al planner è stato scelto per confrontare le configurazioni in condizioni omogenee ed entro un tempo ragionevole, evitando di attendere il completamento di run molto lunghe sui maze 32×32. Per questo motivo, in tutte le run degli esperimenti di scalabilità il centro del labirinto non viene raggiunto entro il limite, e la colonna "Completato" risulta sempre 0: il tasso di successo come metrica a sé non è quindi valutabile in questo esperimento, a differenza dell'esperimento di confronto, dove non è presente alcun limite di chiamate.
 
-### Lettura dei risultati
-
-- **Proposizionale vs numerico**: a parità di labirinto, il numero di stati espansi e il tempo di pianificazione medio per chiamata sono molto simili tra le due modellazioni (550.67 vs 566.33 stati espansi medi, 3.81s vs 3.87s per chiamata nell'esperimento di confronto). Rappresentare esplicitamente i costi delle azioni non porta quindi, su questi labirinti, un vantaggio evidente in termini di ricerca, a fronte di una modellazione più complessa da costruire e mantenere.
-- **Completa vs incrementale**: la strategia incrementale non riduce il tempo di pianificazione (il planner riparte comunque da zero ad ogni chiamata), ma riduce drasticamente il tempo di generazione del problema PDDL: da 0.9839s a 0.0378s per la modellazione proposizionale e da 1.0089s a 0.0361s per quella numerica (tempo totale sull'intera esplorazione). Il vantaggio cresce con la dimensione della mappa nota, come si osserva anche nell'esperimento di scalabilità: sul maze 32×32, la generazione media per chiamata scende da 0.01931s a 0.00118s in proposizionale e da 0.02031s a 0.00117s in numerico.
-- **Scalabilità**: il tempo di pianificazione medio per chiamata cresce in modo marcato tra 16×16 e 32×32 in tutte le configurazioni (da ~4-5s a ~67-80s), mentre il numero di stati espansi medi cresce solo lievemente, suggerendo che il costo dominante all'aumentare della dimensione sia legato alla complessità di ricerca del planner più che al numero di stati effettivamente esplorati entro il limite di chiamate imposto.
 
 > Per la visione dei grafici si rimanda alla cartella **'/test/grafici'**
 
