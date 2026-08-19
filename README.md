@@ -15,19 +15,52 @@ Il progetto confronta:
   - *aggiornamento incrementale* delle sole informazioni modificate
 
 ## Architettura
+- **`core/`** — Modello indipendente dal planner che rappresenta lo stato del robot e la conoscenza parziale del labirinto.
+  - definizione delle azioni e delle direzioni;
+  - stato del robot;
+  - letture dei sensori;
+  - stato dei passaggi (`SCONOSCIUTO`, `LIBERO`, `MURO`);
+  - costruzione e aggiornamento della mappa parziale;
+  - selezione delle celle di frontiera e utility BFS di supporto all'esplorazione.
+  La cartella contiene anche la rappresentazione delle modifiche ai passaggi utilizzata dall'aggiornamento incrementale. 
 
-- **`core/`** — Modello del robot, della mappa parziale, degli stati dei passaggi e delle direzioni.
-- **`mms/`** — Interfaccia con il simulatore mms.
-- **`planning/`**
-  - **`proposizionale/`** — Problem builder (completo e incrementale) per la modellazione proposizionale.
-  - **`numerico/`** — Problem builder (completo e incrementale) per la modellazione numerica, gestione costi azioni.
-  - **`pddl_planner.py`** — Wrapper su Unified Planning (`OneshotPlanner`), estrazione di stati espansi/dead-end dall'output del planner.
-  - **`gestore_pianificazione.py`** — Orchestrazione: costruzione problema, chiamata planner, replanning.
-- **`navigazione/`** — Ciclo principale sense → plan → act, selezione delle celle frontiera da esplorare, speed run finale.
-- **`metriche/`** — Raccolta e stampa delle metriche di una run.
-- **`test/`** — Script per gli esperimenti di confronto e scalabilità, generazione automatica dei grafici. I dati grezzi delle run sono salvati in `test/dati/`, i riepiloghi aggregati e i grafici in `test/grafici/`.
-- **`mazes/`** — Labirinti di test (inclusi quelli generati per la scalabilità, con seed fisso).
-- **`tools/`** — Generatore di labirinti.
+- **`mms/`** — Interfaccia tra l'algoritmo e il simulatore Micromouse MMS.
+  Gestisce la lettura dei sensori e l'esecuzione delle azioni sul simulatore, mantenendo separata la logica di navigazione dalle API di MMS.
+
+- **`planning/`** — Costruzione dei problemi PDDL, invocazione dei planner e gestione dei piani.
+  - **`proposizionale/`** — Builder completo e incrementale per la modellazione proposizionale, utilizzata con Fast Downward.
+  - **`numerico/`** — Builder completo e incrementale per la modellazione numerica, utilizzata con ENHSP; estende il modello proposizionale introducendo costi delle azioni e minimizzazione del costo totale.
+  - **`gestore_pianificazione.py`** — Coordina selezione/mantenimento del goal, costruzione o aggiornamento del problema, chiamata al planner e gestione del piano corrente.
+  - **`pddl_planner.py`** — Wrapper comune su Unified Planning (`OneshotPlanner`); esegue il planner configurato e raccoglie esito, tempo di pianificazione e statistiche disponibili
+  - **`plan_executor.py`** — Converte le azioni simboliche del piano PDDL nelle corrispondenti azioni del robot e ne coordina l'esecuzione.
+  - **`problem_builder_factory.py`** — Istanzia il builder appropriato in base alla coppia modellazione (`proposizionale`/`numerico`) e strategia (`completa`/`incrementale`).
+  - **`strategia_aggiornamento.py`** — Definisce tramite Enum il tipo di problema e la strategia di aggiornamento utilizzati nelle diverse configurazioni.
+
+- **`navigazione/`** — Logica di navigazione ad alto livello. Contiene il ciclo principale di esplorazione e la gestione della speed run finale. In particolare `navigatore_micromouse.py` coordina il ciclo sense → plan → act, mentre `speed_run.py` gestisce la pianificazione finale a mappa conosciuta.
+
+- **`metriche/`** — Raccolta, aggregazione e presentazione delle metriche delle run.
+  - **`modelli.py`** — Strutture dati utilizzate per rappresentare le metriche.
+  - **`raccoglitore.py`** — Accumula le misure prodotte durante esplorazione e planning.
+  - **`reporter.py`** — Produce l'output finale delle metriche. 
+
+- **`test/`** — Infrastruttura per la sperimentazione automatizzata. 
+  - **`test_confronto.py`** — Esegue il confronto tra le quattro configurazioni sperimentali sui maze 16×16.
+  - **`test_scalabilita.py`** — Esegue il test di scalabilità sui maze 8×8, 16×16 e 32×32.
+  - **`interfaccia_test.py`** — Simula l'interfaccia con MMS caricando direttamente i maze, così da rendere gli esperimenti automatici e indipendenti dal simulatore grafico.
+  - **`planner_limitato.py`** — Introduce il limite al numero di chiamate al planner utilizzato negli esperimenti di scalabilità.
+  - **`genera_grafici.py`** — Aggrega i risultati e genera riepiloghi CSV e grafici.
+  - **`utils.py`** — Utility comuni agli script sperimentali.
+  - **`dati/`** — CSV contenenti i dati grezzi delle run.
+  - **`grafici/`** — Riepiloghi aggregati e grafici prodotti dagli esperimenti.
+
+- **`mazes/`** — Labirinti utilizzati per test ed esperimenti, compresi i maze generati con seed fisso per la valutazione della scalabilità.
+
+- **`tools/`** — Script di supporto, tra cui il generatore dei labirinti utilizzati nei test di scalabilità.
+
+- **`utils/`** — Utility generali condivise dal progetto; attualmente contiene il supporto per l'output di debug. 
+- **`main.py`** — Entry point dell'esecuzione tramite MMS: configura i componenti e avvia la navigazione del Micromouse. 
+
+- **`API.py`** — API utilizzata per la comunicazione con MMS.
 
 ## Requisiti
 
