@@ -83,22 +83,29 @@ pip install -r requirements.txt
 
 ## Setup di mms
 
-`main.py` non è eseguibile direttamente da terminale, ma va lanciato da dentro il simulatore mms:
+main.py è progettato per funzionare in comunicazione con il simulatore MMS tramite stdin e stdout. Per questo motivo va configurato come algoritmo all'interno di MMS:
 
 1. Scaricare mms per il proprio sistema operativo dalla pagina <https://github.com/mackorone/mms>
-2. Aprire mms e creare un nuovo algoritmo per micromouse
+2. Aprire mms e creare un nuovo algoritmo per micromouse specificando il nome e la directory del progetto
 3. Lasciare vuoto il Build Command
-4. Come Run Command indicare il percorso completo all'interprete Python e a `main.py` di questo repository, ad esempio:
+4. Nel campo Run Command indicare l'interprete Python seguito da main.py e dalla configurazione desiderata.
 
    ```bash
-   python3 /percorso/assoluto/a/Progetto-robotica/main.py
+    /percorso/assoluto/python3 main.py proposizionale completa
    ```
+  Le 4 configurazioni disponibili sono:
+  - python3 main.py proposizionale completa
+  - python3 main.py proposizionale incrementale
+  - python3 main.py numerico completa
+  - python3 main.py numerico incrementale
+  
+  Il comando dell'interprete può variare a seconda del sistema operativo e dell'installazione di Python
 
 5. Selezionare un labirinto (uno di quelli in `mazes/`, o uno standard incluso in mms) e avviare la run dal pulsante Run di mms.
 
 ## Sperimentazione
 
-Per eseguire gli esperimenti di confronto:
+Per eseguire gli esperimenti di confronto digitare da terminale:
 
 ```bash
 python3 -m test.test_confronto
@@ -122,7 +129,7 @@ python3 -m test.genera_grafici
 
 ### Nota sulla scelta del planner in esplorazione
 
-Il planner ottimo è stato usato in esplorazione solo nell'implementazione dimostrativa su mms, per garantire un comportamento più prevedibile durante l'esecuzione dal vivo. Negli esperimenti si è invece usato deliberatamente il planner satisficing in esplorazione, fase in cui il numero di chiamate al planner è massimo e il tempo cumulato di pianificazione è la metrica chiave da confrontare tra le configurazioni, riservando il planner ottimo alla sola speed run finale, dove la qualità del percorso è effettivamente il criterio che conta ai fini della competizione.
+Durante l'esplorazione si è scelto di usare un planner satisficing, riservando il planner ottimo alla sola speed run finale, dove la qualità del percorso è effettivamente il criterio che conta ai fini della competizione.
 
 ## Metriche raccolte
 
